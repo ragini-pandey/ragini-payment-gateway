@@ -157,6 +157,33 @@ async function authHeader(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${token}` };
 }
 
+/**
+ * Handle a 401 by attempting one Supabase session refresh. If refresh
+ * fails (no refresh token, or refresh token expired), sign the user out
+ * and redirect to /login so we never leave them on a broken page.
+ *
+ * Returns `true` if the caller should retry the original request.
+ */
+async function handleUnauthorized(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
+      return false;
+    }
+    return true;
+  } catch {
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.assign("/login");
+    }
+    return false;
+  }
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -165,7 +192,11 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  opts: RequestOptions = {},
+  _retried = false,
+): Promise<T> {
   const auth = await authHeader();
   const params = new URLSearchParams();
   if (opts.environment) params.set("environment", opts.environment);
@@ -188,6 +219,15 @@ async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> 
   });
 
   if (res.status === 204) return undefined as T;
+
+  // 401 → try once to refresh the Supabase session, then retry. If refresh
+  // fails, handleUnauthorized() will sign out + redirect to /login.
+  if (res.status === 401 && !_retried) {
+    const refreshed = await handleUnauthorized();
+    if (refreshed) {
+      return apiFetch<T>(path, opts, true);
+    }
+  }
 
   const text = await res.text();
   const parsed = text ? safeJson(text) : null;

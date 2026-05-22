@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ragini PG — API Client</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ivory:   #FBF7F0;
+      --card:    #FFFFFF;
+      --border:  #E9DFC9;
+      --saffron: #C8612A;
+      --gold:    #D4A24C;
+      --ink:     #2A1F14;
+      --muted:   #6B5A47;
+    }
+
+    body {
+      background: var(--ivory);
+      color: var(--ink);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      padding: 48px 20px 80px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 30px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 36px;
+    }
+
+    /* ── Card ─────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(42,31,20,0.06);
+    }
+
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+
+    /* ── Forms ────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 5px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--ivory);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--gold);
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 13px;
+    }
+
+    .row   { margin-bottom: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: var(--saffron);
+      flex-shrink: 0;
+    }
+    .checkbox-label {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 400;
+    }
+    .checkbox-label code {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      background: var(--ivory);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--ink);
+    }
+
+    /* ── Tabs ─────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab:hover { border-color: var(--gold); color: var(--ink); }
+    .tab.active {
+      background: var(--saffron);
+      border-color: var(--saffron);
+      color: #fff;
+    }
+
+    /* ── Send button ──────────────────────────────── */
+    .send-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 28px;
+      background: var(--saffron);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .send-btn:hover:not(:disabled) { opacity: 0.88; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── CORS hint ────────────────────────────────── */
+    .hint {
+      background: #FFF8EE;
+      border: 1px solid #F0D5B0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .hint code {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      background: var(--ivory);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--ink);
+    }
+
+    /* ── History ──────────────────────────────────── */
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .clear-btn {
+      font-size: 12px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .clear-btn:hover { background: var(--ivory); color: var(--saffron); }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 0;
+    }
+
+    .log-entry {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--ivory);
+      cursor: pointer;
+      user-select: none;
+    }
+    .log-header:hover { background: #F4EDE0; }
+
+    .badge {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 6px;
+      letter-spacing: 0.02em;
+      min-width: 38px;
+      text-align: center;
+    }
+    .badge-2xx     { background: #DCFCE7; color: #166534; }
+    .badge-4xx     { background: #FEF9C3; color: #854D0E; }
+    .badge-5xx     { background: #FEE2E2; color: #991B1B; }
+    .badge-err     { background: #FEE2E2; color: #991B1B; }
+    .badge-pending { background: #E0E7FF; color: #3730A3; }
+
+    .log-method {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .log-path {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+      flex: 1;
+    }
+    .log-latency {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .log-time {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .log-body {
+      display: none;
+      padding: 14px;
+      background: #FAFAF8;
+      border-top: 1px solid var(--border);
+    }
+    .log-body.open { display: block; }
+
+    .log-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+      margin-top: 12px;
+    }
+    .log-section-label:first-child { margin-top: 0; }
+
+    pre {
+      background: var(--ivory);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--ink);
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ── Spinner ──────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>Demo client</h1>
+
+  <!-- ── Config ─────────────────────────────────── -->
+  <div class="card">
+    <p class="section-title">Configuration</p>
+
+
+    <div class="grid-2">
+      <div class="row">
+        <label for="api-key">API Key</label>
+        <input
+          id="api-key"
+          type="text"
+          placeholder="rpg_live_… or rpg_test_…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="row">
+        <label for="backend-url">Backend URL</label>
+        <input id="backend-url" type="text" value="http://localhost:8000" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Request builder ────────────────────────── -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="payments">POST /v1/payments</button>
+      <button class="tab"        data-tab="events">POST /v1/events</button>
+    </div>
+
+    <!-- Payments form -->
+    <div id="form-payments">
+      <div class="grid-3 row">
+        <div>
+          <label for="pay-amount">Amount (cents) *</label>
+          <input id="pay-amount" type="number" value="1000" min="1" />
+        </div>
+        <div>
+          <label for="pay-currency">Currency</label>
+          <input id="pay-currency" type="text" value="USD" maxlength="3" />
+        </div>
+        <div>
+          <label for="pay-customer">Customer ID</label>
+          <input id="pay-customer" type="text" placeholder="cus_… (optional)" />
+        </div>
+      </div>
+
+      <div class="row">
+        <label for="pay-idem">Idempotency Key (optional)</label>
+        <input
+          id="pay-idem"
+          type="text"
+          placeholder="Leave blank to skip — repeat the same key to test idempotent replay"
+        />
+      </div>
+
+      <div class="checkbox-row">
+        <input id="pay-fail" type="checkbox" />
+        <span class="checkbox-label">
+          Force failure — sends <code>fail: true</code>, triggers a 402 + <code>payment.error</code> event
+        </span>
+      </div>
+    </div>
+
+    <!-- Events form -->
+    <div id="form-events" style="display:none">
+      <div class="row">
+        <label for="evt-type">Event Type *</label>
+        <select id="evt-type">
+          <option value="payment.success">payment.success</option>
+          <option value="payment.error">payment.error</option>
+          <option value="api_key.expired">api_key.expired</option>
+          <option value="api_key.revoked">api_key.revoked</option>
+          <option value="security.alert">security.alert</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="evt-data">Event Data (JSON)</label>
+        <textarea id="evt-data">{}</textarea>
+      </div>
+
+      <div class="row">
+        <label for="evt-idem">Idempotency Key (optional)</label>
+        <input
+          id="evt-idem"
+          type="text"
+          placeholder="Leave blank to skip — repeat the same key to test idempotent replay"
+        />
+      </div>
+    </div>
+
+    <button class="send-btn" id="send-btn">Send Request</button>
+  </div>
+
+  <!-- ── History ────────────────────────────────── -->
+  <div class="card">
+    <div class="history-header">
+      <p class="section-title" style="margin:0">Request History</p>
+      <button class="clear-btn" id="clear-btn">Clear</button>
+    </div>
+    <div id="history-list">
+      <p class="empty-state">No requests yet — send one above</p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  /* ── Tab switching ───────────────────────────────── */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const isPayments = tab.dataset.tab === 'payments';
+      document.getElementById('form-payments').style.display = isPayments ? 'block' : 'none';
+      document.getElementById('form-events').style.display   = isPayments ? 'none'  : 'block';
+    });
+  });
+
+  /* ── Clear history ───────────────────────────────── */
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    document.getElementById('history-list').innerHTML =
+      '<p class="empty-state">No requests yet — send one above</p>';
+  });
+
+  /* ── Send ────────────────────────────────────────── */
+  document.getElementById('send-btn').addEventListener('click', sendRequest);
+
+  function activeTab() {
+    return document.querySelector('.tab.active').dataset.tab;
+  }
+
+  function badgeClass(status) {
+    if (status === null) return 'badge-err';
+    if (status >= 200 && status < 300) return 'badge-2xx';
+    if (status >= 400 && status < 500) return 'badge-4xx';
+    return 'badge-5xx';
+  }
+
+  function now() {
+    return new Date().toLocaleTimeString([], {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+
+  async function sendRequest() {
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('backend-url').value.trim().replace(/\/$/, '');
+
+    if (!apiKey)  { alert('Enter an API key first.'); return; }
+    if (!baseUrl) { alert('Enter a backend URL.'); return; }
+
+    const tab = activeTab();
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    };
+    let path, body;
+
+    if (tab === 'payments') {
+      path = '/v1/payments';
+      const amount = parseInt(document.getElementById('pay-amount').value, 10);
+      if (!amount || amount <= 0) { alert('Amount must be a positive integer (in cents).'); return; }
+      const currency   = document.getElementById('pay-currency').value.trim() || 'USD';
+      const customerId = document.getElementById('pay-customer').value.trim();
+      const fail       = document.getElementById('pay-fail').checked;
+      const idem       = document.getElementById('pay-idem').value.trim();
+      body = { amount, currency };
+      if (customerId) body.customerId = customerId;
+      if (fail)       body.fail = true;
+      if (idem)       headers['Idempotency-Key'] = idem;
+    } else {
+      path = '/v1/events';
+      const eventType = document.getElementById('evt-type').value;
+      const rawData   = document.getElementById('evt-data').value.trim();
+      const idem      = document.getElementById('evt-idem').value.trim();
+      let data = {};
+      if (rawData) {
+        try { data = JSON.parse(rawData); }
+        catch { alert('Event Data is not valid JSON.'); return; }
+      }
+      body = { eventType, data };
+      if (idem) headers['Idempotency-Key'] = idem;
+    }
+
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending…';
+
+    const t0 = Date.now();
+    const entryId = 'entry-' + t0 + '-' + Math.random().toString(36).slice(2, 7);
+
+    addPendingEntry(entryId, path, headers, body);
+
+    let status = null, statusText = 'Network / CORS Error', responseBody = null;
+    try {
+      const res = await fetch(baseUrl + path, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      status     = res.status;
+      statusText = res.statusText;
+      try { responseBody = await res.json(); }
+      catch { responseBody = await res.text().catch(() => '(empty body)'); }
+    } catch (err) {
+      responseBody = {
+        error: err.message,
+        hint: 'Check CORS config: add CORS_ALLOWED_ORIGINS=http://localhost:3000 to backend/.env',
+      };
+    } finally {
+      const latencyMs = Date.now() - t0;
+      resolveEntry(entryId, status, statusText, responseBody, latencyMs);
+      btn.disabled = false;
+      btn.innerHTML = 'Send Request';
+    }
+  }
+
+  /* ── Mask key in logged headers ──────────────────── */
+  function maskedHeaders(h) {
+    const out = { ...h };
+    if (out['Authorization']) {
+      const raw = out['Authorization'].replace('Bearer ', '');
+      const suffix = raw.slice(-4);
+      out['Authorization'] = `Bearer rpg_••••${suffix}`;
+    }
+    return out;
+  }
+
+  /* ── DOM helpers ─────────────────────────────────── */
+  function addPendingEntry(id, path, headers, body) {
+    const list  = document.getElementById('history-list');
+    const empty = list.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    el.id = id;
+    el.innerHTML = `
+      <div class="log-header" onclick="toggleBody('${id}')">
+        <span class="badge badge-pending" id="${id}-badge">…</span>
+        <span class="log-method">POST</span>
+        <span class="log-path">${escHtml(path)}</span>
+        <span class="log-latency" id="${id}-latency"></span>
+        <span class="log-time">${now()}</span>
+      </div>
+      <div class="log-body" id="${id}-body">
+        <p class="log-section-label">Request</p>
+        <pre>${escHtml(JSON.stringify({ url: path, headers: maskedHeaders(headers), body }, null, 2))}</pre>
+        <p class="log-section-label">Response</p>
+        <pre id="${id}-resp">Waiting…</pre>
+      </div>`;
+    list.insertBefore(el, list.firstChild);
+  }
+
+  function resolveEntry(id, status, statusText, responseBody, latencyMs) {
+    const badge   = document.getElementById(`${id}-badge`);
+    const latency = document.getElementById(`${id}-latency`);
+    const resp    = document.getElementById(`${id}-resp`);
+
+    if (badge) {
+      badge.className = `badge ${badgeClass(status)}`;
+      badge.textContent = status !== null ? String(status) : 'ERR';
+    }
+    if (latency) latency.textContent = `${latencyMs} ms`;
+    if (resp) {
+      resp.textContent = JSON.stringify({ status, statusText, latencyMs, body: responseBody }, null, 2);
+    }
+
+    // auto-expand
+    const body = document.getElementById(`${id}-body`);
+    if (body) body.classList.add('open');
+  }
+
+  function toggleBody(id) {
+    document.getElementById(`${id}-body`).classList.toggle('open');
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+</script>
+</body>
+</html>

@@ -11,7 +11,7 @@ FastAPI service for API key management, webhook dispatch, and security signals. 
 - `app/services/` — business logic (`key_service`, `webhook_service`, `event_emitter`, `audit`).
 - `app/security/` — `api_keys` (generation + HMAC-with-pepper hashing + verification), `hmac_sign` (webhook signature), `jwt` (Supabase JWT verification), `rate_limit` (Redis fixed-window).
 - `app/middleware/` — `request_id` (per-request `X-Request-ID` + structlog binding).
-- `app/workers/` — `celery_app.py` + `tasks/` (`dispatch_delivery`, `fanout_event`, `scan_anomalies`).
+- `app/workers/` — `celery_app.py` (beat schedule) + `tasks/` (`dispatch_delivery`, `fanout_event`, `scan_anomalies`). The `sweep_expired_keys` beat task lives inside `scan_anomalies.py`.
 - `app/deps.py` — FastAPI dependencies (`get_current_user`, `get_current_api_key`, DB session, environment).
 - `alembic/versions/` — migrations (`0001_phase2_schema`, `0002_audit_events`). Never edit an applied revision; always add a new one.
 
@@ -23,6 +23,8 @@ FastAPI service for API key management, webhook dispatch, and security signals. 
 - Webhook signing: combined header `X-Ragini-Signature: t=<unix>,v1=<hex_hmac_sha256(secret, "<t>.<body>")>`. Reject verification if `|now - t| > 300s` (see `scripts/verify_signature.py`).
 - Webhook delivery: enqueue via Celery; exponential backoff (60s→24h, 6 attempts max, ±15% jitter); statuses `pending | retrying | success | failed | dead_lettered`. Persist every attempt in `webhook_deliveries`.
 - Rate limiting: `app.security.rate_limit.check_and_consume` runs inside `get_current_api_key`. Tripping it records a 429 usage row + a deduped `rate_limit_exceeded` security alert.
+- Idempotency: `POST /v1/payments` and `POST /v1/events` accept an optional `Idempotency-Key` header; the same `(key_id, Idempotency-Key)` pair returns the original response for 24 h via Redis.
+- Environments: dashboard list endpoints accept `?environment=test|live`; CORS allows the `X-Environment` header. Webhook fan-out is env-scoped.
 - Audit trail: every dashboard mutation MUST call `app.services.audit.record(...)` with `actor_user_id`, `action`, `target_type`, `target_id`. The audit row is committed alongside the mutation.
 - Ownership: every query filters by `user_id` from the JWT or API key. No endpoint may return rows the caller doesn't own.
 - Errors: raise `HTTPException` with stable error codes; do not leak internal messages.

@@ -160,7 +160,7 @@ async def get_current_api_key(
 
     # Status checks → security-relevant
     if row.status == "revoked":
-        await event_emitter.emit_security_alert(
+        event_id = await event_emitter.emit_security_alert(
             db,
             user_id=row.user_id,
             environment=row.environment,
@@ -171,10 +171,11 @@ async def get_current_api_key(
         )
         await db.commit()
         # Schedule fanout AFTER commit so the worker sees the row.
+        event_emitter.schedule_fanout(event_id)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "API key has been revoked")
 
     if row.status == "expired" or (row.expires_at is not None and row.expires_at.timestamp() < time.time()):
-        await event_emitter.emit_security_alert(
+        event_id = await event_emitter.emit_security_alert(
             db,
             user_id=row.user_id,
             environment=row.environment,
@@ -184,6 +185,7 @@ async def get_current_api_key(
             details={"route": route, "ip": ip},
         )
         await db.commit()
+        event_emitter.schedule_fanout(event_id)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "API key has expired")
 
     # Success — log usage and update last_used_at.
@@ -219,8 +221,9 @@ async def get_current_api_key(
             should_alert = await redis.set(dedupe_key, "1", ex=600, nx=True)
         except Exception:
             should_alert = False
+        rate_event_id: uuid.UUID | None = None
         if should_alert:
-            await event_emitter.emit_security_alert(
+            rate_event_id = await event_emitter.emit_security_alert(
                 db,
                 user_id=row.user_id,
                 environment=row.environment,
@@ -235,6 +238,8 @@ async def get_current_api_key(
                 },
             )
         await db.commit()
+        if rate_event_id is not None:
+            event_emitter.schedule_fanout(rate_event_id)
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Rate limit exceeded",

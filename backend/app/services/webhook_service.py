@@ -110,12 +110,12 @@ async def list_deliveries(
 async def rotate_secret(
     db: AsyncSession, *, user_id: uuid.UUID | str, webhook_id: uuid.UUID
 ) -> Webhook | None:
+    """Generate a new secret on the row. Caller is responsible for committing
+    so the rotation and its audit entry land in the same transaction."""
     row = await get_webhook(db, user_id=user_id, webhook_id=webhook_id)
     if row is None:
         return None
     row.secret = _generate_secret()
-    await db.commit()
-    await db.refresh(row)
     return row
 
 

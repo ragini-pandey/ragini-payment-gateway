@@ -40,7 +40,7 @@ async def record(
             target_type=target_type,
             target_id=target_id,
             environment=environment,
-            metadata=metadata or {},
+            metadata_=metadata or {},
             ip=ip,
             user_agent=user_agent,
         )

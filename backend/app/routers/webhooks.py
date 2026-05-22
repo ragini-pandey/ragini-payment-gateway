@@ -188,12 +188,25 @@ async def rotate_secret(
     webhook_id: uuid.UUID,
     user: CurrentUser,
     db: DbDep,
+    request: Request,
 ) -> dict:
     row = await webhook_service.rotate_secret(
         db, user_id=user.user_id, webhook_id=webhook_id
     )
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Webhook not found")
+    await audit.record(
+        db,
+        request=request,
+        actor_user_id=user.user_id,
+        action="webhook.rotate_secret",
+        target_type="webhook",
+        target_id=row.id,
+        environment=row.environment,
+        metadata={"url": row.url},
+    )
+    await db.commit()
+    await db.refresh(row)
     return _serialize(row, reveal_secret=True)
 
 

@@ -2,9 +2,7 @@
 
 A developer-grade API key & webhook management platform — Stripe-style key formats, signed deliveries, async retries, anomaly detection, and an audit trail.
 
-[![CI](https://github.com/your-org/ragini-payment-gateway/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
-
-> Case-study implementation. Architecture rationale is in [`plan.md`](./plan.md).
+> Case-study implementation. Current architecture and roadmap live in [`plan.md`](./plan.md); the full backend reference (endpoints, events, env vars, walkthrough) is in [`backend/README.md`](./backend/README.md); the dashboard reference is in [`frontend/README.md`](./frontend/README.md).
 
 ## What's in the box
 
@@ -45,10 +43,12 @@ A developer-grade API key & webhook management platform — Stripe-style key for
 ```
 ragini-payment-gateway/
 ├── frontend/   Vite + React 18 + TS + Tailwind + shadcn/ui  (Yarn classic)
-├── backend/    FastAPI + Celery + Postgres + Redis           (Python 3.11)
-├── supabase/   schema.sql + RLS policies (Phase-1 base tables)
-└── .github/    CI workflow (lint, migrate, pytest, frontend build)
+├── backend/    FastAPI + Celery + Postgres + Redis           (Python 3.11+)
+├── supabase/   schema.sql + RLS policies (base auth-owned tables)
+└── plan.md     architecture + roadmap
 ```
+
+`client/` at the repo root is a leftover static scaffold and is not part of the running system — safe to delete.
 
 ## Quickstart
 
@@ -90,6 +90,11 @@ yarn dev
 
 Open http://localhost:5173, sign in with Google.
 
+## Environments & idempotency
+
+- Every API key and webhook is scoped to `test` or `live`. The plaintext key encodes its env (`rpg_test_…` / `rpg_live_…`) and dashboard list endpoints accept `?environment=test|live`. The dashboard exposes an env switcher; CORS allows the `X-Environment` header for future client-side scoping.
+- `POST /v1/payments` and `POST /v1/events` accept an optional `Idempotency-Key` header. The same `(key_id, Idempotency-Key)` pair returns the original response for 24 h, so safe retries do not double-emit events.
+
 ## Assignment alignment
 
 | Requirement                          | Where                                                                |
@@ -105,6 +110,13 @@ Open http://localhost:5173, sign in with Google.
 | Rate limiting                        | `security/rate_limit.py` wired into `deps.get_current_api_key`       |
 | Audit log                            | `services/audit.py`, `audit_events` table, `GET /v1/audit`           |
 | CI                                   | `.github/workflows/ci.yml`                                           |
+
+## Known limitations
+
+- No hosted deployment yet — the stack is designed for `docker compose up` locally; a temporary ngrok tunnel is the easiest way to share the dashboard for review.
+- No managed API gateway in front of FastAPI; rate limiting, auth, and CORS are enforced in-process by middleware + dependencies. A real deployment would offload rate-limit and edge-auth concerns to an API gateway.
+- Pepper rotation is not yet implemented (single-pepper hashing today).
+- No multi-tenant teams / RBAC — every resource is scoped strictly to the owning Supabase user.
 
 ## What I'd improve with more time
 

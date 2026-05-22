@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.events import EventType
 from app.models.api_key import ApiKey
 from app.security import api_keys as keys
-from app.services import event_emitter
+from app.services import audit, event_emitter
 
 
 async def create_key(
@@ -116,6 +116,19 @@ async def sweep_expired(db: AsyncSession) -> int:
                 event_type=EventType.API_KEY_EXPIRED,
                 data={"api_key_id": str(row.id), "key_id": row.key_id, "name": row.name},
             )
+        )
+        # System-initiated audit entry: no Request context, attribute to the
+        # key owner with a sentinel user_agent so operators can distinguish
+        # automated transitions from user-initiated ones.
+        await audit.record(
+            db,
+            request=None,
+            actor_user_id=row.user_id,
+            action="api_key.expired",
+            target_type="api_key",
+            target_id=row.id,
+            environment=row.environment,
+            metadata={"key_id": row.key_id, "name": row.name, "source": "sweep_expired"},
         )
     if rows:
         await db.commit()
