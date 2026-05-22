@@ -1,0 +1,82 @@
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-ivory text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif text-ink;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-saffron;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron focus-visible:ring-offset-2
+           focus-visible:ring-offset-ivory disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-saffron text-ivory shadow-soft hover:bg-saffron-600 active:bg-saffron-700;
+  }
+  .btn-secondary {
+    @apply btn border border-parchment bg-white text-ink hover:bg-cream;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:text-ink hover:bg-cream;
+  }
+  .card-surface {
+    @apply rounded-3xl border border-parchment bg-white shadow-soft;
+  }
+  .input {
+    @apply w-full rounded-xl border border-parchment bg-white px-4 py-2.5 text-sm text-ink
+           placeholder:text-muted/70 focus:border-saffron focus:outline-none focus:ring-2 focus:ring-saffron/30;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.7rem] font-medium;
+  }
+  .badge-active {
+    @apply badge border-emerald-200 bg-emerald-50 text-emerald-700;
+  }
+  .badge-revoked {
+    @apply badge border-rose-200 bg-rose-50 text-rose-700;
+  }
+  .badge-saffron {
+    @apply badge border-saffron-100 bg-saffron-50 text-saffron-700;
+  }
+  .badge-muted {
+    @apply badge border-parchment bg-cream text-muted;
+  }
+}
+
+/* radial saffron glow used behind the centered home cards */
+.saffron-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 162, 76, 0.18) 0%,
+    rgba(212, 162, 76, 0.08) 35%,
+    transparent 70%
+  );
+}
