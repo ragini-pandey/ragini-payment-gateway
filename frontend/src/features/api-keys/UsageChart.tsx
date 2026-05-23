@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -24,6 +24,19 @@ interface Props {
 
 export function UsageChart({ keyId }: Props) {
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
+  const chartWrapRef = useRef<HTMLDivElement>(null);
+  const [chartReady, setChartReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = chartWrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setChartReady(true);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const usage = useQuery<UsageResponse>({
     queryKey: ["api-key-usage", keyId, range],
     queryFn: () => apiClient.getApiKeyUsage(keyId, range),
@@ -93,8 +106,8 @@ export function UsageChart({ keyId }: Props) {
             No requests recorded in this range yet.
           </div>
         ) : (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64" ref={chartWrapRef}>
+            {chartReady && <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="usageTotal" x1="0" y1="0" x2="0" y2="1">
@@ -147,7 +160,7 @@ export function UsageChart({ keyId }: Props) {
                   name="Errors"
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </div>
         )}
       </div>

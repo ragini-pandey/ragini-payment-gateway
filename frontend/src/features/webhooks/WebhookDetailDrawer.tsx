@@ -150,14 +150,25 @@ export function WebhookDetailDrawer({ webhook, onClose }: Props) {
           <section>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h3 className="font-serif text-lg text-ink">Recent deliveries</h3>
-              <button
-                type="button"
-                onClick={() => setTestOpen(true)}
-                className="btn-primary"
-              >
-                <Send className="h-4 w-4" />
-                Send test event
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => list.refetch()}
+                  disabled={list.isFetching}
+                >
+                  <RefreshCw className={cn("h-4 w-4", list.isFetching && "animate-spin")} />
+                  {list.isFetching ? "Refreshing…" : "Refresh"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTestOpen(true)}
+                  className="btn-primary"
+                >
+                  <Send className="h-4 w-4" />
+                  Send test event
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">

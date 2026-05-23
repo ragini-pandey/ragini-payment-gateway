@@ -37,8 +37,6 @@ export function useDeliveryLogs(
         status: params.status,
       }),
     enabled: !!webhookId,
-    // Deliveries are dispatched asynchronously by Celery; poll while open.
-    refetchInterval: webhookId ? 4000 : false,
   });
 
   const sendTest = useMutation<
