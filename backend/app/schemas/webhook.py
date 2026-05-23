@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, HttpUrl, field_validator
+from pydantic import Field, HttpUrl, field_validator, model_validator
 
 from app.events import is_valid_event_type
 from app.schemas import CamelModel
@@ -29,6 +29,12 @@ class CreateWebhookRequest(CamelModel):
         if bad:
             raise ValueError(f"Unknown event types: {bad}")
         return v
+
+    @model_validator(mode="after")
+    def _https_required_for_live(self) -> "CreateWebhookRequest":
+        if self.environment == "live" and str(self.url).startswith("http://"):
+            raise ValueError("Live webhook endpoints must use HTTPS")
+        return self
 
 
 class UpdateWebhookRequest(CamelModel):

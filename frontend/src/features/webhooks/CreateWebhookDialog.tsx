@@ -43,6 +43,7 @@ export function CreateWebhookDialog({ open, onClose, onCreated }: Props) {
   function isValidUrl(value: string) {
     try {
       const u = new URL(value);
+      if (environment === "live" && u.protocol === "http:") return false;
       return u.protocol === "https:" || u.protocol === "http:";
     } catch {
       return false;
@@ -52,7 +53,11 @@ export function CreateWebhookDialog({ open, onClose, onCreated }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValidUrl(url)) {
-      toast.error("Please enter a valid HTTP(S) URL");
+      toast.error(
+        environment === "live"
+          ? "Live webhook endpoints must use HTTPS"
+          : "Please enter a valid HTTP(S) URL"
+      );
       return;
     }
     if (selected.length === 0) {

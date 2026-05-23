@@ -93,6 +93,11 @@ async def update_webhook(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Webhook not found")
     changed: list[str] = []
     if payload.url is not None:
+        if row.environment == "live" and str(payload.url).startswith("http://"):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Live webhook endpoints must use HTTPS",
+            )
         row.url = str(payload.url)
         changed.append("url")
     if payload.description is not None:
