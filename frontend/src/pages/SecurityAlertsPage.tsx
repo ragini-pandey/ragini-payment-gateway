@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { ArrowLeft, ShieldAlert, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import {
   apiClient,
@@ -9,6 +11,7 @@ import {
 } from "@/lib/apiClient";
 import { useEnvironment } from "@/lib/env";
 import { cn, formatDateTime } from "@/lib/utils";
+import { SEEN_KEY } from "@/features/security/useUnreadAlerts";
 
 const SEVERITY_CLASS: Record<SecurityAlertSeverity, string> = {
   low: "bg-cream text-ink border-parchment",
@@ -19,11 +22,33 @@ const SEVERITY_CLASS: Record<SecurityAlertSeverity, string> = {
 
 export function SecurityAlertsPage() {
   const { environment } = useEnvironment();
+  const prevCountRef = useRef<number | null>(null);
+
+  // Mark all current alerts as seen so the header dot clears immediately
+  useEffect(() => {
+    localStorage.setItem(SEEN_KEY, String(Date.now()));
+    window.dispatchEvent(new Event("security-alerts-seen"));
+  }, []);
+
   const query = useQuery<SecurityAlert[]>({
     queryKey: ["securityAlerts", environment],
     queryFn: () => apiClient.listSecurityAlerts(environment),
-    refetchInterval: 15_000,
   });
+
+  useEffect(() => {
+    if (!query.data) return;
+    const current = query.data.length;
+    if (prevCountRef.current !== null && current > prevCountRef.current) {
+      const newest = query.data[0];
+      toast.error(
+        newest
+          ? `New ${newest.severity} alert: ${newest.alertType.replace(/_/g, " ")}`
+          : "New security alert received",
+        { duration: 6000 }
+      );
+    }
+    prevCountRef.current = current;
+  }, [query.data]);
 
   return (
     <AppShell>

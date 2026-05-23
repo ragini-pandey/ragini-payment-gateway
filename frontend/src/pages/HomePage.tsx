@@ -2,9 +2,11 @@ import { Link } from "react-router";
 import { ArrowRight, KeyRound, ShieldAlert, Webhook } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/auth/AuthProvider";
+import { useUnreadAlerts } from "@/features/security/useUnreadAlerts";
 
 export function HomePage() {
   const { user } = useAuth();
+  const { count: alertCount } = useUnreadAlerts();
   const greetingName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
@@ -38,6 +40,7 @@ export function HomePage() {
               icon={<ShieldAlert className="h-6 w-6" />}
               title="Security"
               description="Review suspicious key usage, revoked-key access, and traffic spikes."
+              badge={alertCount}
             />
           </div>
         </div>
@@ -51,16 +54,24 @@ interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
+  badge?: number;
 }
 
-function FeatureCard({ to, icon, title, description }: FeatureCardProps) {
+function FeatureCard({ to, icon, title, description, badge }: FeatureCardProps) {
   return (
     <Link
       to={to}
       className="group card-surface p-8 text-left transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron focus-visible:ring-offset-2 focus-visible:ring-offset-ivory"
     >
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-saffron-50 text-saffron">
-        {icon}
+      <span className="relative inline-flex">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-saffron-50 text-saffron">
+          {icon}
+        </span>
+        {badge != null && badge > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </span>
       <h2 className="mt-6 font-serif text-2xl text-ink">{title}</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted">{description}</p>

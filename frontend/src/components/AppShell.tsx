@@ -2,11 +2,15 @@ import { type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider";
 import { EnvSwitcher } from "@/components/EnvSwitcher";
-import { LogOut } from "lucide-react";
+import { useUnreadAlerts } from "@/features/security/useUnreadAlerts";
+import { useSecurityAlertStream } from "@/features/security/useSecurityAlertStream";
+import { LogOut, ShieldAlert } from "lucide-react";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { count: alertCount } = useUnreadAlerts();
+  useSecurityAlertStream();
 
   async function handleSignOut() {
     await signOut();
@@ -29,6 +33,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex items-center gap-3">
             <EnvSwitcher />
+            {alertCount > 0 && (
+              <Link
+                to="/security"
+                aria-label={`${alertCount} security alert${alertCount !== 1 ? "s" : ""}`}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                <ShieldAlert className="h-5 w-5" />
+                <span className="absolute right-1 top-1 flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-600" />
+                </span>
+              </Link>
+            )}
             {user?.email && (
               <span className="hidden sm:block text-sm text-muted">
                 {user.email}

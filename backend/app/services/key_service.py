@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.events import EventType
@@ -72,20 +75,30 @@ async def revoke_key(
     row.status = "revoked"
     row.revoked_at = datetime.now(timezone.utc)
     row.revoked_reason = reason
-    event_id = await event_emitter.emit(
-        db,
-        user_id=row.user_id,
-        environment=row.environment,
-        event_type=EventType.API_KEY_REVOKED,
-        data={
-            "api_key_id": str(row.id),
-            "key_id": row.key_id,
-            "name": row.name,
-            "reason": reason,
-        },
-    )
+    # Commit the status change first — this is the critical write.
+    # Webhook event emission is non-critical; a failure there must not
+    # roll back the revoke itself.
     await db.commit()
-    event_emitter.schedule_fanout(event_id)
+
+    try:
+        event_id = await event_emitter.emit(
+            db,
+            user_id=row.user_id,
+            environment=row.environment,
+            event_type=EventType.API_KEY_REVOKED,
+            data={
+                "api_key_id": str(row.id),
+                "key_id": row.key_id,
+                "name": row.name,
+                "reason": reason,
+            },
+        )
+        await db.commit()
+        event_emitter.schedule_fanout(event_id)
+    except Exception:
+        logger.exception("Failed to emit api_key.revoked event for key %s", row.id)
+        await db.rollback()
+
     return row
 
 

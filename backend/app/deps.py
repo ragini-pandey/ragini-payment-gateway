@@ -11,11 +11,14 @@ when applicable. Revoked/expired key attempts trigger a ``security.alert``.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 from fastapi import Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy import insert, select
@@ -160,32 +163,40 @@ async def get_current_api_key(
 
     # Status checks → security-relevant
     if row.status == "revoked":
-        event_id = await event_emitter.emit_security_alert(
-            db,
-            user_id=row.user_id,
-            environment=row.environment,
-            alert_type="revoked_key_used",
-            severity="high",
-            api_key_id=row.id,
-            details={"route": route, "ip": ip, "user_agent": ua},
-        )
-        await db.commit()
-        # Schedule fanout AFTER commit so the worker sees the row.
-        event_emitter.schedule_fanout(event_id)
+        try:
+            event_id = await event_emitter.emit_security_alert(
+                db,
+                user_id=row.user_id,
+                environment=row.environment,
+                alert_type="revoked_key_used",
+                severity="high",
+                api_key_id=row.id,
+                details={"route": route, "ip": ip, "user_agent": ua},
+            )
+            await db.commit()
+            # Schedule fanout AFTER commit so the worker sees the row.
+            event_emitter.schedule_fanout(event_id)
+        except Exception:
+            logger.exception("Failed to emit revoked_key_used alert for key %s", row.id)
+            await db.rollback()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "API key has been revoked")
 
     if row.status == "expired" or (row.expires_at is not None and row.expires_at.timestamp() < time.time()):
-        event_id = await event_emitter.emit_security_alert(
-            db,
-            user_id=row.user_id,
-            environment=row.environment,
-            alert_type="expired_key_used",
-            severity="medium",
-            api_key_id=row.id,
-            details={"route": route, "ip": ip},
-        )
-        await db.commit()
-        event_emitter.schedule_fanout(event_id)
+        try:
+            event_id = await event_emitter.emit_security_alert(
+                db,
+                user_id=row.user_id,
+                environment=row.environment,
+                alert_type="expired_key_used",
+                severity="medium",
+                api_key_id=row.id,
+                details={"route": route, "ip": ip},
+            )
+            await db.commit()
+            event_emitter.schedule_fanout(event_id)
+        except Exception:
+            logger.exception("Failed to emit expired_key_used alert for key %s", row.id)
+            await db.rollback()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "API key has expired")
 
     # Success — log usage and update last_used_at.
