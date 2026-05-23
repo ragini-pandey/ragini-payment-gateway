@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -24,17 +24,26 @@ interface Props {
 
 export function UsageChart({ keyId }: Props) {
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
-  const chartWrapRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
   const [chartReady, setChartReady] = useState(false);
 
-  useLayoutEffect(() => {
-    const el = chartWrapRef.current;
-    if (!el) return;
+  // Callback ref: attaches whenever the wrapper div mounts (any branch),
+  // and detaches when it unmounts. Avoids the bug where a useLayoutEffect
+  // runs once on mount with a null ref (because the div is in a sibling
+  // branch during loading) and never re-runs when the div finally mounts.
+  const chartWrapRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!el) {
+      setChartReady(false);
+      return;
+    }
+    if (el.getBoundingClientRect().width > 0) setChartReady(true);
     const ro = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width > 0) setChartReady(true);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    observerRef.current = ro;
   }, []);
 
   const usage = useQuery<UsageResponse>({

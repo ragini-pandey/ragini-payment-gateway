@@ -92,7 +92,8 @@ export function ApiKeysPage() {
                     <th className="px-6 py-3 font-medium">Created</th>
                     <th className="px-6 py-3 font-medium">Expires</th>
                     <th className="px-6 py-3 font-medium">Last used</th>
-                    <th className="px-6 py-3 font-medium" />
+                    <th className="px-6 py-3 font-medium text-center">Usage</th>
+                    <th className="px-6 py-3 font-medium text-right" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-parchment/70">
@@ -137,22 +138,22 @@ const KeyRow = memo(function KeyRow({ apiKey: k, onUsage, onRevoke, revoking }: 
       <td className="px-6 py-4 text-muted">{formatDate(k.createdAt)}</td>
       <td className="px-6 py-4 text-muted">{k.expiresAt ? formatDate(k.expiresAt) : "Never"}</td>
       <td className="px-6 py-4 text-muted">{formatDate(k.lastUsedAt)}</td>
+      <td className="px-6 py-4 text-center">
+        <button type="button" onClick={() => onUsage(k)} className="btn-ghost" aria-label="View usage">
+          <Activity className="h-4 w-4" /><span>Usage</span>
+        </button>
+      </td>
       <td className="px-6 py-4 text-right">
-        <div className="inline-flex items-center gap-1">
-          <button type="button" onClick={() => onUsage(k)} className="btn-ghost" aria-label="View usage">
-            <Activity className="h-4 w-4" /><span>Usage</span>
+        {k.status === "active" && (
+          <button
+            type="button"
+            onClick={() => onRevoke(k)}
+            className="btn-ghost text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+            disabled={revoking}
+          >
+            <Trash2 className="h-4 w-4" /><span>Revoke</span>
           </button>
-          {k.status === "active" && (
-            <button
-              type="button"
-              onClick={() => onRevoke(k)}
-              className="btn-ghost text-rose-700 hover:bg-rose-50 hover:text-rose-700"
-              disabled={revoking}
-            >
-              <Trash2 className="h-4 w-4" /><span>Revoke</span>
-            </button>
-          )}
-        </div>
+        )}
       </td>
     </tr>
   );

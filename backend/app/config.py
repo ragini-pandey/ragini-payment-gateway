@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Per-API-key rate limiting (fixed-window, 1 minute).
-    rate_limit_per_minute: int = 120
+    rate_limit_per_minute: int = 2
     # Reserved for future token-bucket upgrade; not consumed by the
     # current fixed-window implementation.
     rate_limit_burst: int = 60

@@ -1,20 +1,22 @@
-"""Per-API-key rate limiting (Redis fixed-window).
+"""Per-API-key rate limiting using a sliding-window log.
 
-Algorithm: for each ``key_id`` we keep a counter under
-``ratelimit:<key_id>:<unix_minute>``. The first request in a window calls
-``INCR`` (which atomically sets the value to 1) and then sets a 70-second TTL,
-giving the key a clean slate every minute. Subsequent requests just ``INCR``.
-If the post-increment value exceeds the configured limit, the request is
-denied and the remaining seconds-in-window are returned so the caller can
-populate ``Retry-After``.
+Algorithm (Redis sorted set):
+  - Sorted set ``ratelimit:<key_id>`` stores one member per in-flight request;
+    the score is the request timestamp (float seconds, microsecond precision).
+  - A Lua script atomically:
+      1. Removes all members older than ``now - window_seconds`` (expired).
+      2. Counts the remaining live members.
+      3. If count < limit, adds the new request member and returns allowed.
+      4. Refreshes the key TTL so idle keys self-expire from Redis.
 
-This is intentionally simple and correct under concurrency (``INCR`` is
-atomic). A token-bucket upgrade is left as future work.
+  Unlike fixed-window counting this guarantees at most ``limit`` requests in
+  any rolling ``window_seconds``-second window, with no boundary-burst problem.
 """
 
 from __future__ import annotations
 
 import time
+import uuid
 from dataclasses import dataclass
 
 from redis.asyncio import Redis
@@ -28,20 +30,61 @@ class RateLimitResult:
     retry_after: int
 
 
+# Atomic sliding-window check-and-consume in Lua so the
+# read-modify-write is safe under concurrent requests.
+_SLIDING_WINDOW_LUA = """
+local key    = KEYS[1]
+local now    = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit  = tonumber(ARGV[3])
+local member = ARGV[4]
+local cutoff = now - window
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+local count = tonumber(redis.call('ZCARD', key))
+
+if count < limit then
+    redis.call('ZADD', key, now, member)
+    redis.call('EXPIRE', key, window + 10)
+    return {1, count + 1}
+else
+    redis.call('EXPIRE', key, window + 10)
+    return {0, count}
+end
+"""
+
+
 async def check_and_consume(
     redis: Redis, *, key_id: str, limit: int, window_seconds: int = 60
 ) -> RateLimitResult:
-    now = int(time.time())
-    bucket = now // window_seconds
-    bucket_key = f"ratelimit:{key_id}:{bucket}"
-    count = await redis.incr(bucket_key)
-    if count == 1:
-        # Slightly longer TTL than the window so we don't lose the counter
-        # at the exact boundary if the second INCR races the EXPIRE.
-        await redis.expire(bucket_key, window_seconds + 10)
-    if count > limit:
-        retry_after = max(1, window_seconds - (now % window_seconds))
+    now = time.time()
+    bucket_key = f"ratelimit:{key_id}"
+    # Unique member prevents duplicate-score collisions under concurrency.
+    member = f"{now:.6f}-{uuid.uuid4().hex[:8]}"
+
+    result = await redis.eval(
+        _SLIDING_WINDOW_LUA,
+        1,
+        bucket_key,
+        str(now),
+        str(window_seconds),
+        str(limit),
+        member,
+    )
+
+    allowed = bool(result[0])
+    count = int(result[1])
+
+    if not allowed:
+        # Tell the client when the oldest in-window entry ages out.
+        oldest = await redis.zrange(bucket_key, 0, 0, withscores=True)
+        if oldest:
+            oldest_ts = float(oldest[0][1])
+            retry_after = max(1, int(window_seconds - (now - oldest_ts)) + 1)
+        else:
+            retry_after = 1
         return RateLimitResult(
-            allowed=False, count=int(count), limit=limit, retry_after=retry_after
+            allowed=False, count=count, limit=limit, retry_after=retry_after
         )
-    return RateLimitResult(allowed=True, count=int(count), limit=limit, retry_after=0)
+
+    return RateLimitResult(allowed=True, count=count, limit=limit, retry_after=0)
